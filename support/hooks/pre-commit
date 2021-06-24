@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# --porcelain prints filenames either plain, or quoted with
+# double-quotes and all special symbols as backspash sequences.
+# another option is to add also '-z' which uses NUL delimiters
+# and no quoting but handling such format with shell is complicated
+git status --porcelain | while read -r st qfile; do
+    if test "$st" != "A"; then
+        # the operation is not adding; let it pass
+        continue
+    fi
+    case "$qfile" in
+    *\\*) # for special symbol handling, probably shell is really not a reasonable choice
+        printf "Unsupported filename: %s\n" "$qfile"
+        exit 1;;
+    *' "') # trailing spaces need special care in gitignore; do not worth efforts
+        printf "Unsupported filename: %s\n" "$qfile"
+        exit 1;;
+    '"'*'"') # we excluded all quoting, what's left are spaces only, just bite them off
+        qfile1="${qfile%\"}"
+        file="${qfile1#\"}";;
+    *) # simple case
+        file="$qfile";;
+    esac
+    type=$(file -b -i "$file")
+    # the value to compare to is what file from Debian wheezy prints for binaries,
+    # I don't know how portable this value is
+    if test "$type" = "application/x-executable; charset=binary"; then
+        git rm --cached "$file"
+        printf "/%s\n" "$file" >>.git/info/exclude
+    fi
+done
