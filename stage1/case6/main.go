@@ -1,4 +1,3 @@
-// hello.go
 package main
 
 //#include "hello.h"
